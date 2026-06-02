@@ -9,25 +9,25 @@
         body { font-family: 'Malgun Gothic', sans-serif; background: #f4f6f9; margin: 0; padding: 20px; color: #333; }
         .wrapper { max-width: 950px; margin: 0 auto; }
         
-        /* 입력 제어 패널 */
+        /* 입력 제어 패널 UI */
         .input-panel { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 25px; }
         .input-panel h3 { margin-top: 0; color: #0056b3; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
         .form-group input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         
-        /* 버튼 내비게이션 */
+        /* 상단 버튼 레이아웃 */
         .btn-group { text-align: right; margin-top: 15px; }
         .btn { background: #0056b3; color: #fff; border: none; padding: 10px 20px; font-size: 14px; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-pdf { background: #28a745; margin-left: 10px; }
         .btn:hover { opacity: 0.9; }
 
-        /* PDF 리포트 출력 서식 양식 틀 */
+        /* A4 규격 출력 서식 양식 틀 */
         .report-container { background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
         .report-header { text-align: center; border-bottom: 3px double #0056b3; padding-bottom: 15px; margin-bottom: 30px; }
         .report-header h1 { margin: 0; font-size: 26px; color: #111; }
         
-        /* 게시글 단위 규격화 */
+        /* 홍보글 개별 규격화 정렬 */
         .report-item { page-break-inside: avoid; border-bottom: 1px dashed #bbb; padding: 25px 0; }
         .report-item:last-child { border-bottom: none; }
         .item-title { font-size: 18px; margin: 0 0 10px 0; color: #222; font-weight: bold; }
@@ -37,7 +37,7 @@
         .badge-business { background: #e8f5e9; color: #2e7d32; }
         .badge-pr { background: #fff3e0; color: #ef6c00; }
         
-        /* 이미지 정문화 틀 (4:3 황금비율 고정 및 여백 자동 정렬) */
+        /* 핵심 조건: 4:3 황금비율 프레임 고정 및 압축 방지 여백 정렬 */
         .image-wrapper { width: 100%; max-width: 520px; height: 390px; overflow: hidden; border: 1px solid #ddd; border-radius: 4px; margin-top: 10px; background: #fafafa; display: flex; align-items: center; justify-content: center; }
         .image-wrapper img { width: 100%; height: 100%; object-fit: contain; }
     </style>
@@ -46,22 +46,22 @@
 
 <div class="wrapper">
     <div class="input-panel">
-        <h3>강서청소년회관 게시글 실시간 연동 가공</h3>
+        <h3>강서청소년회관 홍보결과 수동 입력 파이프라인</h3>
         <div class="form-group">
-            <label>게시글 제목 (홈페이지 제목 복사)</label>
+            <label>게시글 제목 (부서 자동 매핑 대상)</label>
             <input type="text" id="postTitle" placeholder="예: [운영지원팀] 풋살 클럽 참가자 모집 또는 FUNGYM 12주 체형관리">
         </div>
         <div class="form-group">
-            <label>조회수</label>
-            <input type="text" id="postViews" placeholder="숫자만 입력하거나 긁어온 텍스트 그대로 입력 (예: 조회수: 1745)">
+            <label>조회수 (텍스트 그대로 붙여넣어도 숫자만 자동 정제)</label>
+            <input type="text" id="postViews" placeholder="예: 조회수: 1745 또는 1,028">
         </div>
         <div class="form-group">
-            <label>첨부 이미지 URL (우클릭 후 '이미지 주소 복사' 한 링크)</label>
-            <input type="text" id="postImgUrl" placeholder="https://www.gs-youth.or.kr/upload/... 형태의 주소">
+            <label>홍보 이미지 URL (마우스 우클릭 -> 이미지 주소 복사한 링크)</label>
+            <input type="text" id="postImgUrl" placeholder="https://... 형태의 원본 이미지 링크 주소">
         </div>
         <div class="form-group">
-            <label>작성일 / 게시일</label>
-            <input type="text" id="postDate" placeholder="예: 2026-05-07">
+            <label>게시 일시 (연도, 일자, 시간 등 자율 입력)</label>
+            <input type="text" id="postDate" placeholder="예: 2026-05-07 14:17 또는 2026. 5. 13.">
         </div>
         <div class="btn-group">
             <button class="btn" onclick="addAndSyncData()">실시간 대시보드 등록</button>
@@ -71,7 +71,7 @@
 
     <div class="report-container" id="pdf-target-area">
         <div class="report-header">
-            <h1>강서청소년회관 커뮤니티 홍보결과 종합보고서</h1>
+            <h1>강서청소년회관 실시간 홍보결과 보고서</h1>
         </div>
         <div id="render-list">
             </div>
@@ -79,11 +79,11 @@
 </div>
 
 <script type="module">
-    // Firebase Web SDK CDN 연동
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // 본인의 Firebase 프로젝트 설정값 입력
+    // ────────────────────────────────────────────────────────
+    // ⭐ [중요] 3단계에서 이 부분을 1단계에서 복사한 내 내용으로 바꿔치기합니다!
     const firebaseConfig = {
         apiKey: "YOUR_API_KEY",
         authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
@@ -92,45 +92,44 @@
         messagingSenderId: "YOUR_SENDER_ID",
         appId: "YOUR_APP_ID"
     };
+    // ────────────────────────────────────────────────────────
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // [부서 정교화 규칙 적용 함수 - 미확인 시 공백 처리]
+    // [부서 정교화 규칙 적용 함수 - 미확인 시 부서명 없이 공백 처리]
     function autoClassifyTeam(title) {
         if (!title) return { name: "", class: "" };
         const text = title.toLowerCase();
         
-        // 1단계: 명시적 대괄호 매핑
         if (text.includes("운영지원팀")) return { name: "운영지원팀", class: "badge-operation" };
         if (text.includes("청소년사업팀")) return { name: "청소년사업팀", class: "badge-business" };
         if (text.includes("교육·홍보팀") || text.includes("교육홍보팀")) return { name: "교육·홍보팀", class: "badge-pr" };
         
-        // 2단계: 핵심 키워드 매핑
+        // 키워드 기반 2차 자동 분류
         if (/ai|인공지능|윤리|홍보결과|홍보 결과|보급형/.test(text)) return { name: "교육·홍보팀", class: "badge-pr" };
         if (/fungym|재미짐|재미:짐|체형|몸즈|풋살|스포츠|축구/.test(text)) return { name: "청소년사업팀", class: "badge-business" };
         
-        // 부서명을 확인하지 못했다면 상호 연동에 문제없도록 공백 반환
+        // 부서명을 확인하지 못했다면 상관없이 공백("")으로 조용히 진행
         return { name: "", class: "" };
     }
 
-    // 데이터 업로드 및 실시간 동기화 함수
     window.addAndSyncData = async function() {
-        const title = document.getElementById("postTitle").value.strip ? document.getElementById("postTitle").value.strip() : document.getElementById("postTitle").value;
+        const title = document.getElementById("postTitle").value.trim();
         const viewsRaw = document.getElementById("postViews").value;
         const imgUrl = document.getElementById("postImgUrl").value || "https://via.placeholder.com/520x390?text=No+Image";
-        const date = document.getElementById("postDate").value || new Date().toISOString().split('T')[0];
+        const date = document.getElementById("postDate").value || "일시 미지정";
         
-        if(!title) { alert("게시글 제목을 입력해주세요."); return; }
+        if(!title) { alert("게시글 제목을 꼭 입력해주세요!"); return; }
 
-        // 조회수 텍스트에서 숫자만 추출 (예: "조회수: 1,745" -> 1745)
+        // 조회수 텍스트에서 숫자만 자동 정제
         const cleanViews = parseInt(viewsRaw.replace(/[^0-9]/g, '')) || 0;
         
-        // 부서 3개 분기 처리 추출
+        // 부서 매핑 처리
         const teamObj = autoClassifyTeam(title);
 
         try {
-            await addDoc(collection(db, "gs_promotions"), {
+            await addDoc(collection(db, "gs_reports"), {
                 title: title,
                 views: cleanViews,
                 teamName: teamObj.name,
@@ -140,7 +139,7 @@
                 createdAt: new Date()
             });
             
-            // 입력 폼 리셋
+            // 입력창 초기화
             document.getElementById("postTitle").value = "";
             document.getElementById("postViews").value = "";
             document.getElementById("postImgUrl").value = "";
@@ -150,16 +149,14 @@
         }
     }
 
-    // Firestore에서 실시간으로 가져와 양식 틀 안에 배치 (조회수 높은 순 자동 정렬)
-    const q = query(collection(db, "gs_promotions"), orderBy("views", "desc"));
+    // 데이터베이스 실시간 감시 및 조회수 높은 순 정렬출력
+    const q = query(collection(db, "gs_reports"), orderBy("views", "desc"));
     onSnapshot(q, (snapshot) => {
         const renderList = document.getElementById("render-list");
         renderList.innerHTML = "";
         
         snapshot.forEach((doc) => {
             const item = doc.data();
-            
-            // 부서명이 있는 경우에만 뱃지 디자인 출력, 없으면 공백 패스
             const teamBadgeHtml = item.teamName ? `<span class="badge ${item.teamClass}">${item.teamName}</span> | ` : '';
             
             const html = `
@@ -168,10 +165,10 @@
                     <div class="item-meta">
                         ${teamBadgeHtml}
                         <b>조회수:</b> ${item.views.toLocaleString()}회 | 
-                        <b>게시일:</b> ${item.date}
+                        <b>게시 일시:</b> ${item.date}
                     </div>
                     <div class="image-wrapper">
-                        <img src="${item.imgUrl}" alt="강서청소년회관 홍보 성과">
+                        <img src="${item.imgUrl}" alt="규격 포스터 이미지">
                     </div>
                 </div>
             `;
@@ -181,14 +178,14 @@
 </script>
 
 <script>
-    // 일정한 양식 틀 그대로 A4 가로세로 비율 최적화하여 PDF 다운로드
+    // A4 규격 레이아웃 틀 그대로 PDF 다운로드 작동 엔진
     function downloadReportPDF() {
         const element = document.getElementById('pdf-target-area');
         const options = {
             margin:       15,
-            filename:     '강서청소년회관_5월_홍보결과보고서.pdf',
-            image:         { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2.5, useCORS: true, logging: false }, // 외부 사이트 이미지 크롭 대비 CORS 활성화
+            filename:     '강서청소년회관_정기_홍보결과보고서.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2.5, useCORS: true, logging: false }, // 외부 포털 이미지 방어 해제 CORS 활성화
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
         html2pdf().set(options).from(element).save();
