@@ -16,10 +16,11 @@
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
         .form-group input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         
-        /* 상단 버튼 레이아웃 */
+        /* 버튼 레이아웃 */
         .btn-group { text-align: right; margin-top: 15px; }
         .btn { background: #0056b3; color: #fff; border: none; padding: 10px 20px; font-size: 14px; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-pdf { background: #28a745; margin-left: 10px; }
+        .btn-clear { background: #dc3545; margin-left: 10px; }
         .btn:hover { opacity: 0.9; }
 
         /* A4 규격 출력 서식 양식 틀 */
@@ -37,7 +38,7 @@
         .badge-business { background: #e8f5e9; color: #2e7d32; }
         .badge-pr { background: #fff3e0; color: #ef6c00; }
         
-        /* 핵심 조건: 4:3 황금비율 프레임 고정 및 압축 방지 여백 정렬 */
+        /* 핵심 조건: 4:3 황금비율 프레임 고정 및 여백 자동 정렬 */
         .image-wrapper { width: 100%; max-width: 520px; height: 390px; overflow: hidden; border: 1px solid #ddd; border-radius: 4px; margin-top: 10px; background: #fafafa; display: flex; align-items: center; justify-content: center; }
         .image-wrapper img { width: 100%; height: 100%; object-fit: contain; }
     </style>
@@ -46,13 +47,13 @@
 
 <div class="wrapper">
     <div class="input-panel">
-        <h3>강서청소년회관 홍보결과 수동 입력 파이프라인</h3>
+        <h3>강서청소년회관 홍보결과 수동 입력 대시보드</h3>
         <div class="form-group">
             <label>게시글 제목 (부서 자동 매핑 대상)</label>
             <input type="text" id="postTitle" placeholder="예: [운영지원팀] 풋살 클럽 참가자 모집 또는 FUNGYM 12주 체형관리">
         </div>
         <div class="form-group">
-            <label>조회수 (텍스트 그대로 붙여넣어도 숫자만 자동 정제)</label>
+            <label>조회수 (긁어온 텍스트 그대로 붙여넣어도 숫자만 자동 정제)</label>
             <input type="text" id="postViews" placeholder="예: 조회수: 1745 또는 1,028">
         </div>
         <div class="form-group">
@@ -64,8 +65,9 @@
             <input type="text" id="postDate" placeholder="예: 2026-05-07 14:17 또는 2026. 5. 13.">
         </div>
         <div class="btn-group">
-            <button class="btn" onclick="addAndSyncData()">실시간 대시보드 등록</button>
+            <button class="btn" onclick="addAndRenderData()">리포트 양식에 등록</button>
             <button class="btn btn-pdf" onclick="downloadReportPDF()">결과 자료 PDF 다운로드</button>
+            <button class="btn btn-clear" onclick="clearAllData()">전체 초기화</button>
         </div>
     </div>
 
@@ -78,118 +80,6 @@
     </div>
 </div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-    // ────────────────────────────────────────────────────────
-    // ⭐ [중요] 3단계에서 이 부분을 1단계에서 복사한 내 내용으로 바꿔치기합니다!
-    const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_PROJECT_ID.appspot.com",
-        messagingSenderId: "YOUR_SENDER_ID",
-        appId: "YOUR_APP_ID"
-    };
-    // ────────────────────────────────────────────────────────
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    // [부서 정교화 규칙 적용 함수 - 미확인 시 부서명 없이 공백 처리]
-    function autoClassifyTeam(title) {
-        if (!title) return { name: "", class: "" };
-        const text = title.toLowerCase();
-        
-        if (text.includes("운영지원팀")) return { name: "운영지원팀", class: "badge-operation" };
-        if (text.includes("청소년사업팀")) return { name: "청소년사업팀", class: "badge-business" };
-        if (text.includes("교육·홍보팀") || text.includes("교육홍보팀")) return { name: "교육·홍보팀", class: "badge-pr" };
-        
-        // 키워드 기반 2차 자동 분류
-        if (/ai|인공지능|윤리|홍보결과|홍보 결과|보급형/.test(text)) return { name: "교육·홍보팀", class: "badge-pr" };
-        if (/fungym|재미짐|재미:짐|체형|몸즈|풋살|스포츠|축구/.test(text)) return { name: "청소년사업팀", class: "badge-business" };
-        
-        // 부서명을 확인하지 못했다면 상관없이 공백("")으로 조용히 진행
-        return { name: "", class: "" };
-    }
-
-    window.addAndSyncData = async function() {
-        const title = document.getElementById("postTitle").value.trim();
-        const viewsRaw = document.getElementById("postViews").value;
-        const imgUrl = document.getElementById("postImgUrl").value || "https://via.placeholder.com/520x390?text=No+Image";
-        const date = document.getElementById("postDate").value || "일시 미지정";
-        
-        if(!title) { alert("게시글 제목을 꼭 입력해주세요!"); return; }
-
-        // 조회수 텍스트에서 숫자만 자동 정제
-        const cleanViews = parseInt(viewsRaw.replace(/[^0-9]/g, '')) || 0;
-        
-        // 부서 매핑 처리
-        const teamObj = autoClassifyTeam(title);
-
-        try {
-            await addDoc(collection(db, "gs_reports"), {
-                title: title,
-                views: cleanViews,
-                teamName: teamObj.name,
-                teamClass: teamObj.class,
-                imgUrl: imgUrl,
-                date: date,
-                createdAt: new Date()
-            });
-            
-            // 입력창 초기화
-            document.getElementById("postTitle").value = "";
-            document.getElementById("postViews").value = "";
-            document.getElementById("postImgUrl").value = "";
-            document.getElementById("postDate").value = "";
-        } catch (e) {
-            console.error("Firebase Sync Error: ", e);
-        }
-    }
-
-    // 데이터베이스 실시간 감시 및 조회수 높은 순 정렬출력
-    const q = query(collection(db, "gs_reports"), orderBy("views", "desc"));
-    onSnapshot(q, (snapshot) => {
-        const renderList = document.getElementById("render-list");
-        renderList.innerHTML = "";
-        
-        snapshot.forEach((doc) => {
-            const item = doc.data();
-            const teamBadgeHtml = item.teamName ? `<span class="badge ${item.teamClass}">${item.teamName}</span> | ` : '';
-            
-            const html = `
-                <div class="report-item">
-                    <h2 class="item-title">${item.title}</h2>
-                    <div class="item-meta">
-                        ${teamBadgeHtml}
-                        <b>조회수:</b> ${item.views.toLocaleString()}회 | 
-                        <b>게시 일시:</b> ${item.date}
-                    </div>
-                    <div class="image-wrapper">
-                        <img src="${item.imgUrl}" alt="규격 포스터 이미지">
-                    </div>
-                </div>
-            `;
-            renderList.innerHTML += html;
-        });
-    });
-</script>
-
 <script>
-    // A4 규격 레이아웃 틀 그대로 PDF 다운로드 작동 엔진
-    function downloadReportPDF() {
-        const element = document.getElementById('pdf-target-area');
-        const options = {
-            margin:       15,
-            filename:     '강서청소년회관_정기_홍보결과보고서.pdf',
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2.5, useCORS: true, logging: false }, // 외부 포털 이미지 방어 해제 CORS 활성화
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-        html2pdf().set(options).from(element).save();
-    }
-</script>
-</body>
-</html>
+    // 브라우저 자체 메모리(localStorage)를 사용하여 가입 없이 데이터 유지
+    let reportStorage
